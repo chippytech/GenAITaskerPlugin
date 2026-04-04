@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 🔧 Required -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+
+    <!-- 🌐 Needed for OpenAI -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+    <queries>
+        <package android:name="net.dinglisch.android.taskerm" />
+        <package android:name="net.dinglisch.android.tasker" />
+    </queries>
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="AI Tasker Plugin"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.GenAITaskerPlugin">
+
+        <!-- 🚀 Your normal app -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+
+        <!-- 🔌 THIS IS THE IMPORTANT PART -->
+        <activity
+            android:name=".AIPluginActivity"
+            android:exported="true"
+            android:label="AI Action"
+            android:icon="@mipmap/ic_launcher">
+
+            <intent-filter>
+                <!-- 🚨 THIS LINE MAKES TASKER SEE YOUR PLUGIN -->
+                <action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING" />
+            </intent-filter>
+
+        </activity>
+
+    </application>
+
+</manifest>
