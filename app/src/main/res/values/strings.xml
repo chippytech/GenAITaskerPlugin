@@ -1,3 +1,16 @@
 <resources>
     <string name="app_name">GenAI Tasker Plugin</string>
+    <string name="provider_openai">OpenAI</string>
+    <string name="provider_gemini">Gemini</string>
+    <string name="provider_openrouter">OpenRouter</string>
+    <string name="provider_ollama">Ollama</string>
+    <string name="provider_claude">Claude</string>
+    <string name="msg_tasker_not_found">Tasker not found</string>
+    <string name="msg_enter_api_key">Please enter an API Key</string>
+    <string name="hint_api_base_url">API Base URL (optional)</string>
+    <string name="msg_testing_connection">Testing connection...</string>
+    <string name="test_message">Hello, are you there?</string>
+    <string name="msg_network_error">Network Error: %1$s</string>
+    <string name="msg_success">Success!\nResponse: %1$s</string>
+    <string name="msg_error">Error: %1$d\n%2$s</string>
 </resources>

@@ -17,7 +17,15 @@ import java.io.IOException
 
 class MainActivity : AppCompatActivity() {
 
-    private val providers = arrayOf("OpenAI", "Gemini", "OpenRouter")
+    private val providers by lazy {
+        arrayOf(
+            getString(R.string.provider_openai),
+            getString(R.string.provider_gemini),
+            getString(R.string.provider_openrouter),
+            getString(R.string.provider_claude),
+            getString(R.string.provider_ollama)
+        )
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,6 +43,7 @@ class MainActivity : AppCompatActivity() {
         testProvider.setText(providers[0], false)
 
         val testApiKey = findViewById<TextInputEditText>(R.id.testApiKey)
+        val testBaseUrl = findViewById<TextInputEditText>(R.id.testBaseUrl)
         val btnTestApi = findViewById<Button>(R.id.btnTestApi)
         val testResult = findViewById<TextView>(R.id.testResult)
         val btnOpenTasker = findViewById<Button>(R.id.btnOpenTasker)
@@ -50,30 +59,31 @@ class MainActivity : AppCompatActivity() {
             if (intent != null) {
                 startActivity(intent)
             } else {
-                Toast.makeText(this, "Tasker not found", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.msg_tasker_not_found), Toast.LENGTH_SHORT).show()
             }
         }
 
         btnTestApi.setOnClickListener {
             val provider = testProvider.text.toString()
             val apiKey = testApiKey.text.toString()
-            if (apiKey.isBlank()) {
-                testResult.text = "Please enter an API Key"
+            val baseUrl = testBaseUrl.text.toString()
+            if (apiKey.isBlank() && provider != getString(R.string.provider_ollama)) {
+                testResult.text = getString(R.string.msg_enter_api_key)
                 return@setOnClickListener
             }
 
-            testResult.text = "Testing connection..."
-            performTestCall(provider, apiKey, testResult)
+            testResult.text = getString(R.string.msg_testing_connection)
+            performTestCall(provider, apiKey, baseUrl, testResult)
         }
     }
 
-    private fun performTestCall(provider: String, apiKey: String, resultView: TextView) {
+    private fun performTestCall(provider: String, apiKey: String, customBaseUrl: String, resultView: TextView) {
         val client = OkHttpClient()
         val mediaType = "application/json".toMediaTypeOrNull()
-        val message = "Hello, are you there?"
+        val message = getString(R.string.test_message)
 
         val (url, bodyJson, authHeaderName, authHeaderValue) = when (provider) {
-            "OpenAI" -> {
+            getString(R.string.provider_openai) -> {
                 val json = JSONObject().apply {
                     put("model", "gpt-4o-mini")
                     put("messages", JSONArray().put(JSONObject().apply {
@@ -81,9 +91,10 @@ class MainActivity : AppCompatActivity() {
                         put("content", message)
                     }))
                 }
-                listOf("https://api.openai.com/v1/chat/completions", json.toString(), "Authorization", "Bearer $apiKey")
+                val baseUrl = customBaseUrl.ifBlank { "https://api.openai.com/v1" }.removeSuffix("/")
+                listOf("$baseUrl/chat/completions", json.toString(), "Authorization", "Bearer $apiKey")
             }
-            "Gemini" -> {
+            getString(R.string.provider_gemini) -> {
                 val json = JSONObject().apply {
                     put("contents", JSONArray().put(JSONObject().apply {
                         put("parts", JSONArray().put(JSONObject().apply {
@@ -91,9 +102,11 @@ class MainActivity : AppCompatActivity() {
                         }))
                     }))
                 }
-                listOf("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$apiKey", json.toString(), "Content-Type", "application/json")
+                // Gemini is tricky with custom base URLs because the key is a query param
+                val baseUrl = customBaseUrl.ifBlank { "https://generativelanguage.googleapis.com/v1beta" }.removeSuffix("/")
+                listOf("$baseUrl/models/gemini-1.5-flash:generateContent?key=$apiKey", json.toString(), "Content-Type", "application/json")
             }
-            "OpenRouter" -> {
+            getString(R.string.provider_openrouter) -> {
                 val json = JSONObject().apply {
                     put("model", "google/gemini-flash-1.5")
                     put("messages", JSONArray().put(JSONObject().apply {
@@ -101,7 +114,33 @@ class MainActivity : AppCompatActivity() {
                         put("content", message)
                     }))
                 }
-                listOf("https://openrouter.ai/api/v1/chat/completions", json.toString(), "Authorization", "Bearer $apiKey")
+                val baseUrl = customBaseUrl.ifBlank { "https://openrouter.ai/api/v1" }.removeSuffix("/")
+                listOf("$baseUrl/chat/completions", json.toString(), "Authorization", "Bearer $apiKey")
+            }
+            getString(R.string.provider_claude) -> {
+                val json = JSONObject().apply {
+                    put("model", "claude-3-5-sonnet-20240620")
+                    put("max_tokens", 1024)
+                    put("messages", JSONArray().put(JSONObject().apply {
+                        put("role", "user")
+                        put("content", message)
+                    }))
+                }
+                val baseUrl = customBaseUrl.ifBlank { "https://api.anthropic.com/v1" }.removeSuffix("/")
+                listOf("$baseUrl/messages", json.toString(), "x-api-key", apiKey)
+            }
+            getString(R.string.provider_ollama) -> {
+                val json = JSONObject().apply {
+                    put("model", "llama3")
+                    put("messages", JSONArray().put(JSONObject().apply {
+                        put("role", "user")
+                        put("content", message)
+                    }))
+                    put("stream", false)
+                }
+                val host = customBaseUrl.ifBlank { "http://10.0.2.2:11434" }.removeSuffix("/")
+                val baseUrl = if (host.startsWith("http")) host else "http://$host"
+                listOf("$baseUrl/api/chat", json.toString(), "", "")
             }
             else -> return
         }
@@ -111,24 +150,31 @@ class MainActivity : AppCompatActivity() {
             .url(url)
             .post(body)
 
-        if (provider != "Gemini") {
-            requestBuilder.addHeader(authHeaderName, authHeaderValue)
+        // Add headers
+        when (provider) {
+            getString(R.string.provider_openai), getString(R.string.provider_openrouter) -> {
+                requestBuilder.addHeader(authHeaderName, authHeaderValue)
+            }
+            getString(R.string.provider_claude) -> {
+                requestBuilder.addHeader(authHeaderName, authHeaderValue)
+                requestBuilder.addHeader("anthropic-version", "2023-06-01")
+            }
         }
 
         val request = requestBuilder.build()
 
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
-                runOnUiThread { resultView.text = "Network Error: ${e.message}" }
+                runOnUiThread { resultView.text = getString(R.string.msg_network_error, e.message) }
             }
 
             override fun onResponse(call: Call, response: Response) {
                 val responseText = response.body?.string()
                 runOnUiThread {
                     if (response.isSuccessful) {
-                        resultView.text = "Success!\nResponse: $responseText"
+                        resultView.text = getString(R.string.msg_success, responseText)
                     } else {
-                        resultView.text = "Error: ${response.code}\n$responseText"
+                        resultView.text = getString(R.string.msg_error, response.code, responseText)
                     }
                 }
             }
