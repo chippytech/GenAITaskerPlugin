@@ -64,9 +64,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnTestApi.setOnClickListener {
-            val provider = testProvider.text.toString()
-            val apiKey = testApiKey.text.toString()
-            val baseUrl = testBaseUrl.text.toString()
+            val provider = testProvider.text.toString().trim()
+            val apiKey = testApiKey.text.toString().trim()
+            val baseUrl = testBaseUrl.text.toString().trim()
             if (apiKey.isBlank() && provider != getString(R.string.provider_ollama)) {
                 testResult.text = getString(R.string.msg_enter_api_key)
                 return@setOnClickListener
@@ -82,6 +82,12 @@ class MainActivity : AppCompatActivity() {
         val mediaType = "application/json".toMediaTypeOrNull()
         val message = getString(R.string.test_message)
 
+        fun normalizeGeminiBaseUrl(raw: String): String {
+            val defaultBase = "https://generativelanguage.googleapis.com/v1"
+            val withoutTrailingSlash = raw.trim().ifBlank { defaultBase }.removeSuffix("/")
+            return withoutTrailingSlash.removeSuffix("/models")
+        }
+
         val (url, bodyJson, authHeaderName, authHeaderValue) = when (provider) {
             getString(R.string.provider_openai) -> {
                 val json = JSONObject().apply {
@@ -91,7 +97,7 @@ class MainActivity : AppCompatActivity() {
                         put("content", message)
                     }))
                 }
-                val baseUrl = customBaseUrl.ifBlank { "https://api.openai.com/v1" }.removeSuffix("/")
+                val baseUrl = customBaseUrl.trim().ifBlank { "https://api.openai.com/v1" }.removeSuffix("/")
                 listOf("$baseUrl/chat/completions", json.toString(), "Authorization", "Bearer $apiKey")
             }
             getString(R.string.provider_gemini) -> {
@@ -102,9 +108,8 @@ class MainActivity : AppCompatActivity() {
                         }))
                     }))
                 }
-                // Gemini is tricky with custom base URLs because the key is a query param
-                val baseUrl = customBaseUrl.ifBlank { "https://generativelanguage.googleapis.com/v1beta" }.removeSuffix("/")
-                listOf("$baseUrl/models/gemini-1.5-flash:generateContent?key=$apiKey", json.toString(), "Content-Type", "application/json")
+                val baseUrl = normalizeGeminiBaseUrl(customBaseUrl)
+                listOf("$baseUrl/models/gemini-1.5-flash:generateContent?key=$apiKey", json.toString(), "", "")
             }
             getString(R.string.provider_openrouter) -> {
                 val json = JSONObject().apply {
@@ -114,7 +119,7 @@ class MainActivity : AppCompatActivity() {
                         put("content", message)
                     }))
                 }
-                val baseUrl = customBaseUrl.ifBlank { "https://openrouter.ai/api/v1" }.removeSuffix("/")
+                val baseUrl = customBaseUrl.trim().ifBlank { "https://openrouter.ai/api/v1" }.removeSuffix("/")
                 listOf("$baseUrl/chat/completions", json.toString(), "Authorization", "Bearer $apiKey")
             }
             getString(R.string.provider_claude) -> {
@@ -126,7 +131,7 @@ class MainActivity : AppCompatActivity() {
                         put("content", message)
                     }))
                 }
-                val baseUrl = customBaseUrl.ifBlank { "https://api.anthropic.com/v1" }.removeSuffix("/")
+                val baseUrl = customBaseUrl.trim().ifBlank { "https://api.anthropic.com/v1" }.removeSuffix("/")
                 listOf("$baseUrl/messages", json.toString(), "x-api-key", apiKey)
             }
             getString(R.string.provider_ollama) -> {
@@ -138,7 +143,7 @@ class MainActivity : AppCompatActivity() {
                     }))
                     put("stream", false)
                 }
-                val host = customBaseUrl.ifBlank { "http://10.0.2.2:11434" }.removeSuffix("/")
+                val host = customBaseUrl.trim().ifBlank { "http://10.0.2.2:11434" }.removeSuffix("/")
                 val baseUrl = if (host.startsWith("http")) host else "http://$host"
                 listOf("$baseUrl/api/chat", json.toString(), "", "")
             }
@@ -150,15 +155,17 @@ class MainActivity : AppCompatActivity() {
             .url(url)
             .post(body)
 
-        // Add headers
-        when (provider) {
-            getString(R.string.provider_openai), getString(R.string.provider_openrouter) -> {
-                requestBuilder.addHeader(authHeaderName, authHeaderValue)
-            }
-            getString(R.string.provider_claude) -> {
-                requestBuilder.addHeader(authHeaderName, authHeaderValue)
-                requestBuilder.addHeader("anthropic-version", "2023-06-01")
-            }
+        if (authHeaderName.isNotBlank()) {
+            requestBuilder.addHeader(authHeaderName, authHeaderValue)
+        }
+        
+        if (provider == getString(R.string.provider_claude)) {
+            requestBuilder.addHeader("anthropic-version", "2023-06-01")
+        }
+        
+        if (provider == getString(R.string.provider_openrouter)) {
+             requestBuilder.addHeader("HTTP-Referer", "https://github.com/joaomgcd/TaskerPluginLibrary")
+             requestBuilder.addHeader("X-Title", "Tasker GenAI Plugin")
         }
 
         val request = requestBuilder.build()

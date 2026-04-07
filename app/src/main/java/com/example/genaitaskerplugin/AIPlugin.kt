@@ -26,6 +26,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.concurrent.TimeUnit
 
 // ---------------- CONFIG HELPER ----------------
 
@@ -51,7 +52,7 @@ class AIHelper(config: TaskerPluginConfig<AIInput>) :
 
 // ---------------- CONFIG ACTIVITY (UI) ----------------
 
-class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
+class AIPlugin : AppCompatActivity(), TaskerPluginConfig<AIInput> {
 
     private val helper by lazy { AIHelper(this) }
 
@@ -63,7 +64,7 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
     private lateinit var modelInput: TextInputEditText
     private lateinit var baseUrlInput: TextInputEditText
     private lateinit var imageUriInput: TextInputEditText
-    
+
     private lateinit var tabLayout: TabLayout
     private lateinit var manualContainer: LinearLayout
     private lateinit var variableContainer: LinearLayout
@@ -89,13 +90,11 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
 
-        // Config Card
         val configCard = createCard()
         val configLayout = LinearLayout(this)
         configLayout.orientation = LinearLayout.VERTICAL
         configLayout.setPadding(padding, padding, padding, padding)
 
-        // Provider Dropdown
         val providerTil = TextInputLayout(this, null, com.google.android.material.R.attr.textInputOutlinedStyle)
         providerTil.hint = "Provider"
         providerTil.endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
@@ -106,7 +105,6 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
         providerTil.addView(providerAutoComplete)
         configLayout.addView(providerTil)
 
-        // API Key
         val apiKeyTil = TextInputLayout(this, null, com.google.android.material.R.attr.textInputOutlinedStyle)
         apiKeyTil.hint = "API Key"
         apiKeyTil.layoutParams = margins(0, 0, 0, 12)
@@ -115,15 +113,13 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
         apiKeyTil.addView(apiKeyInput)
         configLayout.addView(apiKeyTil)
 
-        // Model
         val modelTil = TextInputLayout(this, null, com.google.android.material.R.attr.textInputOutlinedStyle)
-        modelTil.hint = "Model"
+        modelTil.hint = "Model (Default if blank)"
         modelTil.layoutParams = margins(0, 0, 0, 12)
         modelInput = TextInputEditText(modelTil.context)
         modelTil.addView(modelInput)
         configLayout.addView(modelTil)
 
-        // Base URL
         val baseUrlTil = TextInputLayout(this, null, com.google.android.material.R.attr.textInputOutlinedStyle)
         baseUrlTil.hint = "Base URL (Optional)"
         baseUrlTil.layoutParams = margins(0, 0, 0, 12)
@@ -132,10 +128,8 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
         baseUrlTil.addView(baseUrlInput)
         configLayout.addView(baseUrlTil)
 
-        // Image URI
         val imageUriTil = TextInputLayout(this, null, com.google.android.material.R.attr.textInputOutlinedStyle)
         imageUriTil.hint = "Image URI / Variable (Optional)"
-        imageUriTil.helperText = "Local path or Tasker variable like %image_path"
         imageUriTil.layoutParams = margins(0, 0, 0, 12)
         imageUriInput = TextInputEditText(imageUriTil.context)
         imageUriInput.inputType = InputType.TYPE_CLASS_TEXT
@@ -145,17 +139,14 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
         configCard.addView(configLayout)
         rootLayout.addView(configCard)
 
-        // Tab Layout for Input Mode
         tabLayout = TabLayout(this)
         tabLayout.addTab(tabLayout.newTab().setText("Manual Messages"))
         tabLayout.addTab(tabLayout.newTab().setText("Variable / JSON"))
         tabLayout.layoutParams = margins(0, 8, 0, 16)
         rootLayout.addView(tabLayout)
 
-        // Manual Input Container
         manualContainer = LinearLayout(this)
         manualContainer.orientation = LinearLayout.VERTICAL
-        
         messagesContainer = LinearLayout(this)
         messagesContainer.orientation = LinearLayout.VERTICAL
         manualContainer.addView(messagesContainer)
@@ -164,25 +155,20 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
         addMessageButton.text = "Add Message"
         addMessageButton.setIconResource(android.R.drawable.ic_input_add)
         addMessageButton.layoutParams = margins(0, 16, 0, 16)
-        addMessageButton.setOnClickListener {
-            addMessageView("user", "")
-        }
+        addMessageButton.setOnClickListener { addMessageView("user", "") }
         manualContainer.addView(addMessageButton)
         rootLayout.addView(manualContainer)
 
-        // Variable Input Container
         variableContainer = LinearLayout(this)
         variableContainer.orientation = LinearLayout.VERTICAL
         variableContainer.visibility = View.GONE
-        
+
         val varCard = createCard()
         val varLayout = LinearLayout(this)
         varLayout.orientation = LinearLayout.VERTICAL
         varLayout.setPadding(padding, padding, padding, padding)
-        
         val varTil = TextInputLayout(this, null, com.google.android.material.R.attr.textInputOutlinedStyle)
         varTil.hint = "Tasker Variable or JSON Array"
-        varTil.helperText = "Enter a variable like %messages or a JSON array of messages."
         variableInput = TextInputEditText(varTil.context)
         variableInput.setLines(5)
         variableInput.gravity = Gravity.TOP
@@ -192,7 +178,6 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
         variableContainer.addView(varCard)
         rootLayout.addView(variableContainer)
 
-        // Tab logic
         tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
                 if (tab?.position == 0) {
@@ -210,14 +195,11 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
         val saveButton = MaterialButton(this)
         saveButton.text = "Save Configuration"
         saveButton.layoutParams = margins(0, 32, 0, 0)
-        saveButton.setOnClickListener {
-            helper.finishForTasker()
-        }
+        saveButton.setOnClickListener { helper.finishForTasker() }
         rootLayout.addView(saveButton)
 
         scrollView.addView(rootLayout)
         setContentView(scrollView)
-
         helper.onCreate()
     }
 
@@ -242,27 +224,21 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
         messageLayout.orientation = LinearLayout.VERTICAL
         val p = (12 * resources.displayMetrics.density).toInt()
         messageLayout.setPadding(p, p, p, p)
-
         val topRow = LinearLayout(this)
         topRow.orientation = LinearLayout.HORIZONTAL
         topRow.gravity = Gravity.CENTER_VERTICAL
-
         val roleSpinner = Spinner(this)
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, roles)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         roleSpinner.adapter = adapter
         roleSpinner.setSelection(roles.indexOf(role).coerceAtLeast(0))
         topRow.addView(roleSpinner, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-
         val deleteButton = ImageButton(this, null, android.R.attr.borderlessButtonStyle)
         deleteButton.setImageResource(android.R.drawable.ic_menu_delete)
         deleteButton.setColorFilter(Color.RED)
-        deleteButton.setOnClickListener {
-            messagesContainer.removeView(card)
-        }
+        deleteButton.setOnClickListener { messagesContainer.removeView(card) }
         topRow.addView(deleteButton)
         messageLayout.addView(topRow)
-
         val contentTil = TextInputLayout(this, null, com.google.android.material.R.attr.textInputOutlinedStyle)
         contentTil.hint = "Message Content"
         val contentInput = TextInputEditText(contentTil.context)
@@ -270,7 +246,6 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
         contentInput.setLines(3)
         contentTil.addView(contentInput)
         messageLayout.addView(contentTil)
-
         card.addView(messageLayout)
         messagesContainer.addView(card)
     }
@@ -282,12 +257,8 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
         modelInput.setText(regular.model)
         baseUrlInput.setText(regular.baseUrl)
         imageUriInput.setText(regular.imageUri)
-        
         val json = regular.messagesJson ?: "[]"
-        
-        // Decide which tab to show based on whether it's a "clean" JSON array or looks like a variable/raw text
         if (json.trim().startsWith("[") && !json.contains("%")) {
-            // Likely UI-generated or a static JSON array
             tabLayout.getTabAt(0)?.select()
             messagesContainer.removeAllViews()
             try {
@@ -296,20 +267,14 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
                     val obj = jsonArray.getJSONObject(i)
                     addMessageView(obj.optString("role", "user"), obj.optString("content", ""))
                 }
-            } catch (e: Exception) {
-                addMessageView("user", "")
-            }
+            } catch (e: Exception) { addMessageView("user", "") }
         } else {
-            // Likely a variable or manually entered raw content
             tabLayout.getTabAt(1)?.select()
             variableInput.setText(json)
             messagesContainer.removeAllViews()
             addMessageView("user", "")
         }
-        
-        if (messagesContainer.childCount == 0) {
-            addMessageView("user", "")
-        }
+        if (messagesContainer.childCount == 0) addMessageView("user", "")
     }
 
     override val inputForTasker: TaskerInput<AIInput>
@@ -323,325 +288,176 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
                     val roleSpinner = topRow.getChildAt(0) as? Spinner ?: continue
                     val contentTil = layout.getChildAt(1) as? TextInputLayout ?: continue
                     val contentInput = contentTil.editText ?: continue
-                    
                     val obj = JSONObject()
                     obj.put("role", roleSpinner.selectedItem.toString())
                     obj.put("content", contentInput.text.toString())
                     jsonArray.put(obj)
                 }
                 jsonArray.toString()
-            } else {
-                variableInput.text.toString()
-            }
-            
-            return TaskerInput(
-                AIInput(
-                    providerAutoComplete.text.toString(),
-                    apiKeyInput.text.toString(),
-                    modelInput.text.toString(),
-                    baseUrlInput.text.toString(),
-                    imageUriInput.text.toString(),
-                    jsonToSave
-                )
-            )
+            } else { variableInput.text.toString() }
+            return TaskerInput(AIInput(providerAutoComplete.text.toString(), apiKeyInput.text.toString(), modelInput.text.toString(), baseUrlInput.text.toString(), imageUriInput.text.toString(), jsonToSave))
         }
 }
 
-// ---------------- RUNNER (AI CALL) ----------------
+// ---------------- RUNNER (AI CALL) - 2026 FIXED ----------------
 
 class AIRunner : TaskerPluginRunnerAction<AIInput, AIOutput>() {
 
     override fun run(context: Context, input: TaskerInput<AIInput>): TaskerPluginResult<AIOutput> {
-
         val provider = input.regular.provider ?: "OpenAI"
         val apiKey = input.regular.apiKey
         val customBaseUrl = input.regular.baseUrl ?: ""
         val imageUri = input.regular.imageUri ?: ""
-        
+
+        // 2026 DEFAULTS
         val model = input.regular.model?.takeIf { it.isNotBlank() } ?: when (provider) {
-            "OpenAI" -> "gpt-4o-mini"
-            "Gemini" -> "gemini-1.5-flash"
+            "OpenAI" -> "gpt-4o"
+            "Gemini" -> "gemini-3.1-flash"
             "OpenRouter" -> "google/gemini-flash-1.5"
-            "Claude" -> "claude-3-5-sonnet-20240620"
-            "Ollama" -> "llama3"
+            "Claude" -> "claude-4-6-sonnet"
+            "Ollama" -> "llama3.1"
             else -> ""
         }
 
-        if (apiKey.isNullOrBlank() && provider != "Ollama") {
-            return TaskerPluginResultSucess(AIOutput("Error: Missing API Key"))
-        }
-        
+        if (apiKey.isNullOrBlank() && provider != "Ollama") return TaskerPluginResultSucess(AIOutput("Error: Missing API Key"))
+
         val messagesJson = input.regular.messagesJson ?: "[]"
         val messagesArray = try {
             val trimmed = messagesJson.trim()
-            if (trimmed.startsWith("[")) {
-                JSONArray(trimmed)
-            } else {
-                JSONArray().put(JSONObject().apply {
-                    put("role", "user")
-                    put("content", messagesJson)
-                })
-            }
+            if (trimmed.startsWith("[")) JSONArray(trimmed)
+            else JSONArray().put(JSONObject().apply { put("role", "user"); put("content", messagesJson) })
         } catch (e: Exception) {
-            if (messagesJson.isNotBlank()) {
-                JSONArray().put(JSONObject().apply {
-                    put("role", "user")
-                    put("content", messagesJson)
-                })
-            } else {
-                JSONArray()
-            }
+            JSONArray().put(JSONObject().apply { put("role", "user"); put("content", messagesJson) })
         }
 
-        // Handle Image if present
         var imageBase64: String? = null
         var imageMimeType: String? = "image/jpeg"
         if (imageUri.isNotBlank()) {
             try {
                 val uri = android.net.Uri.parse(imageUri)
-                val inputStream = if (uri.scheme == "content" || uri.scheme == "file") {
-                    context.contentResolver.openInputStream(uri)
-                } else {
-                    java.io.FileInputStream(imageUri)
-                }
+                val inputStream = context.contentResolver.openInputStream(uri)
                 val bytes = inputStream?.readBytes()
                 inputStream?.close()
                 if (bytes != null) {
                     imageBase64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
                     imageMimeType = context.contentResolver.getType(uri) ?: "image/jpeg"
                 }
-            } catch (e: Exception) {
-                // Fallback or ignore
-            }
+            } catch (e: Exception) { }
         }
 
-        val client = OkHttpClient()
+// Make sure to add this import at the very top of AIPlugin.kt:
+// import java.util.concurrent.TimeUnit
+
+        val client = OkHttpClient.Builder()
+            .connectTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS) // AI needs time to "think"
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .build()
         val mediaType = "application/json".toMediaTypeOrNull()
+
+        // 2026 FIX: Gemini uses v1beta for Gemini 3
+        fun normalizeGeminiBaseUrl(raw: String?): String {
+            val trimmed = raw?.trim().orEmpty()
+            val defaultBase = "https://generativelanguage.googleapis.com/v1beta"
+            return trimmed.ifBlank { defaultBase }.removeSuffix("/").removeSuffix("/models")
+        }
 
         val (url, bodyJson, authHeaderName, authHeaderValue) = when (provider) {
             "OpenAI", "OpenRouter" -> {
                 val processedMessages = JSONArray()
                 for (i in 0 until messagesArray.length()) {
                     val msg = messagesArray.getJSONObject(i)
-                    val content = msg.optString("content")
-                    
                     if (i == messagesArray.length() - 1 && imageBase64 != null) {
-                        // Attach image to the LAST message
-                        val contentArray = JSONArray()
-                        contentArray.put(JSONObject().apply {
-                            put("type", "text")
-                            put("text", content)
-                        })
-                        contentArray.put(JSONObject().apply {
-                            put("type", "image_url")
-                            put("image_url", JSONObject().apply {
-                                put("url", "data:$imageMimeType;base64,$imageBase64")
-                            })
-                        })
-                        processedMessages.put(JSONObject().apply {
-                            put("role", msg.optString("role"))
-                            put("content", contentArray)
-                        })
-                    } else {
-                        processedMessages.put(msg)
-                    }
+                        val contentArray = JSONArray().apply {
+                            put(JSONObject().put("type", "text").put("text", msg.optString("content")))
+                            put(JSONObject().put("type", "image_url").put("image_url", JSONObject().put("url", "data:$imageMimeType;base64,$imageBase64")))
+                        }
+                        processedMessages.put(JSONObject().put("role", msg.optString("role")).put("content", contentArray))
+                    } else { processedMessages.put(msg) }
                 }
-
-                val json = JSONObject().apply {
-                    put("model", model)
-                    put("messages", processedMessages)
-                }
-                val defaultBase = if (provider == "OpenAI") "https://api.openai.com/v1" 
-                                 else "https://openrouter.ai/api/v1"
-                val baseUrl = customBaseUrl.ifBlank { defaultBase }.removeSuffix("/")
-                listOf(
-                    "$baseUrl/chat/completions",
-                    json.toString(),
-                    "Authorization",
-                    "Bearer $apiKey"
-                )
+                val defaultBase = if (provider == "OpenAI") "https://api.openai.com/v1" else "https://openrouter.ai/api/v1"
+                listOf("${customBaseUrl.ifBlank { defaultBase }.removeSuffix("/")}/chat/completions", JSONObject().put("model", model).put("messages", processedMessages).toString(), "Authorization", "Bearer $apiKey")
             }
             "Gemini" -> {
+                // 1. MUST use v1beta for Gemini 3 Flash as of April 2026
+                val baseUrl = customBaseUrl.ifBlank { "https://generativelanguage.googleapis.com/v1beta" }.removeSuffix("/")
+
+                // 2. Clean the model string to prevent double-prefixing
+                val cleanModel = model.removePrefix("models/").removePrefix("/")
+                val finalUrl = "$baseUrl/models/$cleanModel:generateContent?key=$apiKey"
+
+                // 3. Construct the 2026-compliant JSON body
                 val contents = JSONArray()
                 for (i in 0 until messagesArray.length()) {
                     val msg = messagesArray.getJSONObject(i)
-                    val role = when (msg.optString("role")) {
-                        "assistant" -> "model"
-                        "system" -> "user"
-                        else -> "user"
-                    }
-                    
-                    val parts = JSONArray()
-                    parts.put(JSONObject().apply {
-                        put("text", msg.optString("content"))
-                    })
-                    
-                    if (i == messagesArray.length() - 1 && imageBase64 != null) {
-                        parts.put(JSONObject().apply {
-                            put("inline_data", JSONObject().apply {
-                                put("mime_type", imageMimeType)
-                                put("data", imageBase64)
-                            })
-                        })
-                    }
+                    // Gemini 3 Flash expects "model" instead of "assistant"
+                    val role = if (msg.optString("role") == "assistant") "model" else "user"
 
-                    contents.put(JSONObject().apply {
-                        put("role", role)
-                        put("parts", parts)
-                    })
+                    val parts = JSONArray().put(JSONObject().put("text", msg.optString("content")))
+
+                    // Handle image if present (Flash 3 supports high-density multi-modal)
+                    if (i == messagesArray.length() - 1 && imageBase64 != null) {
+                        parts.put(JSONObject().put("inline_data", JSONObject().apply {
+                            put("mime_type", imageMimeType)
+                            put("data", imageBase64)
+                        }))
+                    }
+                    contents.put(JSONObject().put("role", role).put("parts", parts))
                 }
-                val json = JSONObject().apply {
-                    put("contents", contents)
-                }
-                val baseUrl = customBaseUrl.ifBlank { "https://generativelanguage.googleapis.com/v1beta" }.removeSuffix("/")
-                listOf(
-                    "$baseUrl/models/$model:generateContent?key=$apiKey",
-                    json.toString(),
-                    "Content-Type",
-                    "application/json"
-                )
+
+                val body = JSONObject().put("contents", contents).toString()
+                listOf(finalUrl, body, "", "")
             }
             "Claude" -> {
                 val processedMessages = JSONArray()
                 for (i in 0 until messagesArray.length()) {
                     val msg = messagesArray.getJSONObject(i)
-                    if (msg.optString("role") == "system") continue // Claude handles system separately usually
-                    
-                    val content = msg.optString("content")
+                    if (msg.optString("role") == "system") continue
                     if (i == messagesArray.length() - 1 && imageBase64 != null) {
-                        val contentArray = JSONArray()
-                        contentArray.put(JSONObject().apply {
-                            put("type", "image")
-                            put("source", JSONObject().apply {
-                                put("type", "base64")
-                                put("media_type", imageMimeType)
-                                put("data", imageBase64)
-                            })
-                        })
-                        contentArray.put(JSONObject().apply {
-                            put("type", "text")
-                            put("text", content)
-                        })
-                        processedMessages.put(JSONObject().apply {
-                            put("role", msg.optString("role"))
-                            put("content", contentArray)
-                        })
-                    } else {
-                        processedMessages.put(msg)
-                    }
+                        val contentArray = JSONArray().apply {
+                            put(JSONObject().put("type", "image").put("source", JSONObject().put("type", "base64").put("media_type", imageMimeType).put("data", imageBase64)))
+                            put(JSONObject().put("type", "text").put("text", msg.optString("content")))
+                        }
+                        processedMessages.put(JSONObject().put("role", msg.optString("role")).put("content", contentArray))
+                    } else { processedMessages.put(msg) }
                 }
-
-                val json = JSONObject().apply {
-                    put("model", model)
-                    put("max_tokens", 1024)
-                    put("messages", processedMessages)
-                }
-                val baseUrl = customBaseUrl.ifBlank { "https://api.anthropic.com/v1" }.removeSuffix("/")
-                listOf(
-                    "$baseUrl/messages",
-                    json.toString(),
-                    "x-api-key",
-                    apiKey ?: ""
-                )
+                listOf("https://api.anthropic.com/v1/messages", JSONObject().put("model", model).put("max_tokens", 1024).put("messages", processedMessages).toString(), "x-api-key", apiKey ?: "")
             }
             "Ollama" -> {
                 val processedMessages = JSONArray()
                 for (i in 0 until messagesArray.length()) {
                     val msg = messagesArray.getJSONObject(i)
-                    if (i == messagesArray.length() - 1 && imageBase64 != null) {
-                        processedMessages.put(JSONObject().apply {
-                            put("role", msg.optString("role"))
-                            put("content", msg.optString("content"))
-                            put("images", JSONArray().put(imageBase64))
-                        })
-                    } else {
-                        processedMessages.put(msg)
-                    }
-                }
-
-                val json = JSONObject().apply {
-                    put("model", model)
-                    put("messages", processedMessages)
-                    put("stream", false)
+                    val obj = JSONObject().put("role", msg.optString("role")).put("content", msg.optString("content"))
+                    if (i == messagesArray.length() - 1 && imageBase64 != null) obj.put("images", JSONArray().put(imageBase64))
+                    processedMessages.put(obj)
                 }
                 val host = customBaseUrl.ifBlank { "http://10.0.2.2:11434" }.removeSuffix("/")
-                val baseUrl = if (host.startsWith("http")) host else "http://$host"
-                listOf(
-                    "$baseUrl/api/chat",
-                    json.toString(),
-                    "",
-                    ""
-                )
+                listOf("$host/api/chat", JSONObject().put("model", model).put("messages", processedMessages).put("stream", false).toString(), "", "")
             }
             else -> return TaskerPluginResultSucess(AIOutput("Error: Unknown Provider"))
         }
 
-        val body = bodyJson.toRequestBody(mediaType)
-        val requestBuilder = Request.Builder()
-            .url(url)
-            .post(body)
-
-        // Add headers
-        when (provider) {
-            "OpenAI", "OpenRouter" -> {
-                requestBuilder.addHeader(authHeaderName, authHeaderValue)
-            }
-            "Claude" -> {
-                requestBuilder.addHeader(authHeaderName, authHeaderValue)
-                requestBuilder.addHeader("anthropic-version", "2023-06-01")
-            }
-        }
-        
+        val requestBuilder = Request.Builder().url(url as String).post((bodyJson as String).toRequestBody(mediaType))
+        if (authHeaderName.toString().isNotBlank()) requestBuilder.addHeader(authHeaderName as String, authHeaderValue as String)
+        if (provider == "Claude") requestBuilder.addHeader("anthropic-version", "2023-06-01")
         if (provider == "OpenRouter") {
-             requestBuilder.addHeader("HTTP-Referer", "https://github.com/joaomgcd/TaskerPluginLibrary")
-             requestBuilder.addHeader("X-Title", "Tasker GenAI Plugin")
+            requestBuilder.addHeader("HTTP-Referer", "https://github.com/chippytech/GenAITaskerPlugin")
+            requestBuilder.addHeader("X-Title", "GenAI Tasker Plugin")
         }
-
-        val request = requestBuilder.build()
 
         return try {
-            val response = client.newCall(request).execute()
+            val response = client.newCall(requestBuilder.build()).execute()
             val responseText = response.body?.string()
-
-            if (!response.isSuccessful) {
-                return TaskerPluginResultSucess(AIOutput("Error: ${response.code} ${response.message}\n$responseText"))
+            if (!response.isSuccessful) return TaskerPluginResultSucess(AIOutput("Error ${response.code}: $responseText"))
+            val obj = JSONObject(responseText ?: "")
+            val reply = when (provider) {
+                "OpenAI", "OpenRouter" -> obj.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content")
+                "Gemini" -> obj.getJSONArray("candidates").getJSONObject(0).getJSONObject("content").getJSONArray("parts").getJSONObject(0).getString("text")
+                "Claude" -> obj.getJSONArray("content").getJSONObject(0).getString("text")
+                "Ollama" -> obj.getJSONObject("message").getString("content")
+                else -> "Error"
             }
-
-            val reply = try {
-                val obj = JSONObject(responseText ?: "")
-                when (provider) {
-                    "OpenAI", "OpenRouter" -> {
-                        obj.getJSONArray("choices")
-                            .getJSONObject(0)
-                            .getJSONObject("message")
-                            .getString("content")
-                    }
-                    "Gemini" -> {
-                        obj.getJSONArray("candidates")
-                            .getJSONObject(0)
-                            .getJSONObject("content")
-                            .getJSONArray("parts")
-                            .getJSONObject(0)
-                            .getString("text")
-                    }
-                    "Claude" -> {
-                        obj.getJSONArray("content")
-                            .getJSONObject(0)
-                            .getString("text")
-                    }
-                    "Ollama" -> {
-                        obj.getJSONObject("message")
-                            .getString("content")
-                    }
-                    else -> "Unknown error"
-                }
-            } catch (e: Exception) {
-                "Error parsing response: ${e.message}\nRaw: $responseText"
-            }
-
             TaskerPluginResultSucess(AIOutput(reply, responseText))
-        } catch (e: Exception) {
-            TaskerPluginResultSucess(AIOutput("Network Error: ${e.message}", null))
-        }
+        } catch (e: Exception) { TaskerPluginResultSucess(AIOutput("Network Error: ${e.message}")) }
     }
 }
