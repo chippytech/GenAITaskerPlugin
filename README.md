@@ -1,3 +1,6 @@
+
+<img src="tv_banner.png" alt="GenAI Tasker Plugin logo">
+
 # GenAI Tasker Plugin
 
 A versatile Android plugin for [Tasker](https://play.google.com/store/apps/details?id=net.dinglisch.android.taskerm) that allows you to integrate various Generative AI models into your automation workflows.
