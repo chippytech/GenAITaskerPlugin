@@ -52,7 +52,7 @@ class AIHelper(config: TaskerPluginConfig<AIInput>) :
 
 // ---------------- CONFIG ACTIVITY (UI) ----------------
 
-class AIPlugin : AppCompatActivity(), TaskerPluginConfig<AIInput> {
+class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
 
     private val helper by lazy { AIHelper(this) }
 
