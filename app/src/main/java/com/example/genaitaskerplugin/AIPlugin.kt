@@ -61,7 +61,7 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
 
     private lateinit var providerAutoComplete: MaterialAutoCompleteTextView
     private lateinit var apiKeyInput: TextInputEditText
-    private lateinit var modelInput: TextInputEditText
+    private lateinit var modelAutoComplete: MaterialAutoCompleteTextView
     private lateinit var baseUrlInput: TextInputEditText
     private lateinit var imageUriInput: TextInputEditText
 
@@ -72,6 +72,14 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
     private lateinit var variableInput: TextInputEditText
 
     private val providers = arrayOf("OpenAI", "Gemini", "OpenRouter", "Claude", "Grok", "Ollama")
+    private val providerUrls = mapOf(
+        "OpenAI" to "https://platform.openai.com/api-keys",
+        "Gemini" to "https://aistudio.google.com/app/apikey",
+        "OpenRouter" to "https://openrouter.ai/keys",
+        "Claude" to "https://console.anthropic.com/settings/keys",
+        "Grok" to "https://console.x.ai/",
+        "Ollama" to ""
+    )
     private val roles = arrayOf("user", "system", "assistant")
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -90,13 +98,32 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
 
+        // --- BEGINNER UX: Header Instructions ---
+        val headerCard = createCard()
+        val headerLayout = LinearLayout(this)
+        headerLayout.orientation = LinearLayout.VERTICAL
+        headerLayout.setPadding(padding, padding, padding, padding)
+        val titleText = TextView(this)
+        titleText.text = "Configure AI Action"
+        titleText.textSize = 20f
+        titleText.setTextColor(Color.BLACK)
+        titleText.setPadding(0, 0, 0, 8)
+        headerLayout.addView(titleText)
+        val descText = TextView(this)
+        descText.text = "Choose your AI provider, enter your API key, and select a model. Use 'Manual Messages' to build a prompt or 'Variable' to pass JSON from Tasker."
+        descText.textSize = 14f
+        headerLayout.addView(descText)
+        headerCard.addView(headerLayout)
+        rootLayout.addView(headerCard)
+
         val configCard = createCard()
         val configLayout = LinearLayout(this)
         configLayout.orientation = LinearLayout.VERTICAL
         configLayout.setPadding(padding, padding, padding, padding)
 
         val providerTil = TextInputLayout(this, null, com.google.android.material.R.attr.textInputOutlinedStyle)
-        providerTil.hint = "Provider"
+        providerTil.hint = "AI Provider"
+        providerTil.helperText = "Select which AI service to use"
         providerTil.endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
         providerTil.layoutParams = margins(0, 0, 0, 12)
         providerAutoComplete = MaterialAutoCompleteTextView(providerTil.context)
@@ -105,23 +132,52 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
         providerTil.addView(providerAutoComplete)
         configLayout.addView(providerTil)
 
+        val apiKeyLayout = LinearLayout(this)
+        apiKeyLayout.orientation = LinearLayout.HORIZONTAL
+        apiKeyLayout.gravity = Gravity.CENTER_VERTICAL
         val apiKeyTil = TextInputLayout(this, null, com.google.android.material.R.attr.textInputOutlinedStyle)
         apiKeyTil.hint = "API Key"
-        apiKeyTil.layoutParams = margins(0, 0, 0, 12)
+        apiKeyTil.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         apiKeyInput = TextInputEditText(apiKeyTil.context)
         apiKeyInput.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         apiKeyTil.addView(apiKeyInput)
-        configLayout.addView(apiKeyTil)
+        apiKeyLayout.addView(apiKeyTil)
+
+        val getKeyButton = ImageButton(this, null, android.R.attr.borderlessButtonStyle)
+        getKeyButton.setImageResource(android.R.drawable.ic_menu_info_details)
+        getKeyButton.setOnClickListener {
+            val url = providerUrls[providerAutoComplete.text.toString()]
+            if (!url.isNullOrBlank()) {
+                startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+            } else {
+                Toast.makeText(this, "No URL for this provider", Toast.LENGTH_SHORT).show()
+            }
+        }
+        apiKeyLayout.addView(getKeyButton)
+        configLayout.addView(apiKeyLayout)
 
         val modelTil = TextInputLayout(this, null, com.google.android.material.R.attr.textInputOutlinedStyle)
-        modelTil.hint = "Model (Default if blank)"
-        modelTil.layoutParams = margins(0, 0, 0, 12)
-        modelInput = TextInputEditText(modelTil.context)
-        modelTil.addView(modelInput)
+        modelTil.hint = "Model ID"
+        modelTil.helperText = "e.g. gpt-4o, gemini-1.5-pro"
+        modelTil.layoutParams = margins(0, 8, 0, 12)
+        modelAutoComplete = MaterialAutoCompleteTextView(modelTil.context)
+        modelTil.addView(modelAutoComplete)
         configLayout.addView(modelTil)
 
+        val fetchModelsButton = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
+        fetchModelsButton.text = "🔍 Auto-Detect Models"
+        fetchModelsButton.setOnClickListener { fetchModels() }
+        configLayout.addView(fetchModelsButton)
+
+        val advancedTitle = TextView(this)
+        advancedTitle.text = "Advanced Settings"
+        advancedTitle.textSize = 12f
+        advancedTitle.setPadding(0, 16, 0, 8)
+        configLayout.addView(advancedTitle)
+
         val baseUrlTil = TextInputLayout(this, null, com.google.android.material.R.attr.textInputOutlinedStyle)
-        baseUrlTil.hint = "Base URL (Optional)"
+        baseUrlTil.hint = "Custom API URL (Optional)"
+        baseUrlTil.placeholderText = "Leave empty for default"
         baseUrlTil.layoutParams = margins(0, 0, 0, 12)
         baseUrlInput = TextInputEditText(baseUrlTil.context)
         baseUrlInput.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
@@ -129,7 +185,8 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
         configLayout.addView(baseUrlTil)
 
         val imageUriTil = TextInputLayout(this, null, com.google.android.material.R.attr.textInputOutlinedStyle)
-        imageUriTil.hint = "Image URI / Variable (Optional)"
+        imageUriTil.hint = "Image Source (Variable or URI)"
+        imageUriTil.helperText = "Only for multi-modal models"
         imageUriTil.layoutParams = margins(0, 0, 0, 12)
         imageUriInput = TextInputEditText(imageUriTil.context)
         imageUriInput.inputType = InputType.TYPE_CLASS_TEXT
@@ -250,11 +307,80 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
         messagesContainer.addView(card)
     }
 
+    private fun fetchModels() {
+        val provider = providerAutoComplete.text.toString()
+        val apiKey = apiKeyInput.text.toString()
+        val customBaseUrl = baseUrlInput.text.toString()
+
+        if (apiKey.isBlank() && provider != "Ollama") {
+            Toast.makeText(this, "API Key required to fetch models", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val url = when (provider) {
+            "OpenAI" -> "${customBaseUrl.ifBlank { "https://api.openai.com/v1" }.removeSuffix("/")}/models"
+            "Gemini" -> "${customBaseUrl.ifBlank { "https://generativelanguage.googleapis.com/v1beta" }.removeSuffix("/")}/models?key=$apiKey"
+            "OpenRouter" -> "https://openrouter.ai/api/v1/models"
+            "Claude" -> "https://api.anthropic.com/v1/models" // Note: Claude might need different handling
+            "Grok" -> "https://api.x.ai/v1/models"
+            "Ollama" -> "${customBaseUrl.ifBlank { "http://10.0.2.2:11434" }.removeSuffix("/")}/api/tags"
+            else -> ""
+        }
+
+        if (url.isBlank()) return
+
+        val requestBuilder = Request.Builder().url(url)
+        if (provider != "Gemini" && apiKey.isNotBlank()) {
+            if (provider == "Claude") requestBuilder.addHeader("x-api-key", apiKey).addHeader("anthropic-version", "2023-06-01")
+            else requestBuilder.addHeader("Authorization", "Bearer $apiKey")
+        }
+
+        Thread {
+            try {
+                val client = OkHttpClient()
+                val response = client.newCall(requestBuilder.build()).execute()
+                val responseBody = response.body?.string() ?: ""
+                val modelList = mutableListOf<String>()
+
+                if (response.isSuccessful) {
+                    val json = JSONObject(responseBody)
+                    when (provider) {
+                        "Ollama" -> {
+                            val models = json.getJSONArray("models")
+                            for (i in 0 until models.length()) modelList.add(models.getJSONObject(i).getString("name"))
+                        }
+                        "Gemini" -> {
+                            val models = json.getJSONArray("models")
+                            for (i in 0 until models.length()) {
+                                val name = models.getJSONObject(i).getString("name")
+                                modelList.add(name.removePrefix("models/"))
+                            }
+                        }
+                        else -> {
+                            val data = json.getJSONArray("data")
+                            for (i in 0 until data.length()) modelList.add(data.getJSONObject(i).getString("id"))
+                        }
+                    }
+                    modelList.sort()
+                    runOnUiThread {
+                        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, modelList)
+                        modelAutoComplete.setAdapter(adapter)
+                        modelAutoComplete.showDropDown()
+                    }
+                } else {
+                    runOnUiThread { Toast.makeText(this, "Error fetching models: ${response.code}", Toast.LENGTH_SHORT).show() }
+                }
+            } catch (e: Exception) {
+                runOnUiThread { Toast.makeText(this, "Failed to fetch models: ${e.message}", Toast.LENGTH_SHORT).show() }
+            }
+        }.start()
+    }
+
     override fun assignFromInput(input: TaskerInput<AIInput>) {
         val regular = input.regular
         providerAutoComplete.setText(regular.provider ?: "OpenAI", false)
         apiKeyInput.setText(regular.apiKey)
-        modelInput.setText(regular.model)
+        modelAutoComplete.setText(regular.model)
         baseUrlInput.setText(regular.baseUrl)
         imageUriInput.setText(regular.imageUri)
         val json = regular.messagesJson ?: "[]"
@@ -295,7 +421,7 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
                 }
                 jsonArray.toString()
             } else { variableInput.text.toString() }
-            return TaskerInput(AIInput(providerAutoComplete.text.toString(), apiKeyInput.text.toString(), modelInput.text.toString(), baseUrlInput.text.toString(), imageUriInput.text.toString(), jsonToSave))
+            return TaskerInput(AIInput(providerAutoComplete.text.toString(), apiKeyInput.text.toString(), modelAutoComplete.text.toString(), baseUrlInput.text.toString(), imageUriInput.text.toString(), jsonToSave))
         }
 }
 
