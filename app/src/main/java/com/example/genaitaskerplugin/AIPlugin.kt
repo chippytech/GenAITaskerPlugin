@@ -71,7 +71,7 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
     private lateinit var messagesContainer: LinearLayout
     private lateinit var variableInput: TextInputEditText
 
-    private val providers = arrayOf("OpenAI", "Gemini", "OpenRouter", "Claude", "Ollama")
+    private val providers = arrayOf("OpenAI", "Gemini", "OpenRouter", "Claude", "Grok", "Ollama")
     private val roles = arrayOf("user", "system", "assistant")
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -315,6 +315,7 @@ class AIRunner : TaskerPluginRunnerAction<AIInput, AIOutput>() {
             "Gemini" -> "gemini-3.1-flash"
             "OpenRouter" -> "google/gemini-flash-1.5"
             "Claude" -> "claude-4-6-sonnet"
+            "Grok" -> "grok-2-latest"
             "Ollama" -> "llama3.1"
             else -> ""
         }
@@ -363,7 +364,7 @@ class AIRunner : TaskerPluginRunnerAction<AIInput, AIOutput>() {
         }
 
         val (url, bodyJson, authHeaderName, authHeaderValue) = when (provider) {
-            "OpenAI", "OpenRouter" -> {
+            "OpenAI", "OpenRouter", "Grok" -> {
                 val processedMessages = JSONArray()
                 for (i in 0 until messagesArray.length()) {
                     val msg = messagesArray.getJSONObject(i)
@@ -375,7 +376,11 @@ class AIRunner : TaskerPluginRunnerAction<AIInput, AIOutput>() {
                         processedMessages.put(JSONObject().put("role", msg.optString("role")).put("content", contentArray))
                     } else { processedMessages.put(msg) }
                 }
-                val defaultBase = if (provider == "OpenAI") "https://api.openai.com/v1" else "https://openrouter.ai/api/v1"
+                val defaultBase = when (provider) {
+                    "OpenAI" -> "https://api.openai.com/v1"
+                    "Grok" -> "https://api.x.ai/v1"
+                    else -> "https://openrouter.ai/api/v1"
+                }
                 listOf("${customBaseUrl.ifBlank { defaultBase }.removeSuffix("/")}/chat/completions", JSONObject().put("model", model).put("messages", processedMessages).toString(), "Authorization", "Bearer $apiKey")
             }
             "Gemini" -> {
@@ -451,7 +456,7 @@ class AIRunner : TaskerPluginRunnerAction<AIInput, AIOutput>() {
             if (!response.isSuccessful) return TaskerPluginResultSucess(AIOutput("Error ${response.code}: $responseText"))
             val obj = JSONObject(responseText ?: "")
             val reply = when (provider) {
-                "OpenAI", "OpenRouter" -> obj.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content")
+                "OpenAI", "OpenRouter", "Grok" -> obj.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content")
                 "Gemini" -> obj.getJSONArray("candidates").getJSONObject(0).getJSONObject("content").getJSONArray("parts").getJSONObject(0).getString("text")
                 "Claude" -> obj.getJSONArray("content").getJSONObject(0).getString("text")
                 "Ollama" -> obj.getJSONObject("message").getString("content")
