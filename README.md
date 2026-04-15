@@ -7,7 +7,7 @@ A versatile Android plugin for [Tasker](https://play.google.com/store/apps/detai
 
 ## Features
 
-- **Multiple Providers**: Support for OpenAI, Google Gemini, Anthropic Claude, OpenRouter, and local Ollama instances.
+- **Multiple Providers**: Support for OpenAI, Google Gemini, Anthropic Claude, OpenRouter, xAI (Grok), and local Ollama instances.
 - **Vision Support**: Upload local images or use Tasker variables containing image URIs for multi-modal interactions.
 - **Customizable**: Override default models and API base URLs (perfect for local proxies or self-hosted LLMs).
 - **Flexible Input**:
@@ -23,6 +23,7 @@ A versatile Android plugin for [Tasker](https://play.google.com/store/apps/detai
 | **Gemini** | `gemini-1.5-flash` | Yes |
 | **Claude** | `claude-3-5-sonnet-20240620` | Yes |
 | **OpenRouter**| `google/gemini-flash-1.5` | Yes |
+| **xAI (Grok)** | `grok-2-latest` | Yes |
 | **Ollama** | `llama3` | Yes (Required for local host) |
 
 ## Installation
@@ -38,7 +39,7 @@ A versatile Android plugin for [Tasker](https://play.google.com/store/apps/detai
 ### 1. Basic Setup
 - **Provider**: Select your preferred AI service.
 - **API Key**: Enter your secret key (not required for Ollama if running locally).
-- **Model**: (Optional) Specify a specific model ID (e.g., `gpt-4o`, `claude-3-opus`).
+- **Model**: (Optional) Specify a specific model ID (e.g., `gpt-4o`, `claude-3-opus`, `grok-2-latest`).
 - **Base URL**: (Optional) Provide a custom endpoint (e.g., `http://192.168.1.10:11434` for Ollama).
 
 ### 2. Images (Vision)
@@ -66,7 +67,7 @@ Built with Kotlin and uses the [Tasker Plugin Library](https://github.com/joaomg
 ### Build
 ```bash
 ./gradlew assembleDebug
-```
 
 ## License
+
 MIT License - feel free to use and modify for your own automation needs!
