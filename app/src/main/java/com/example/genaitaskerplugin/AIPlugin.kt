@@ -71,13 +71,15 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
     private lateinit var messagesContainer: LinearLayout
     private lateinit var variableInput: TextInputEditText
 
-    private val providers = arrayOf("OpenAI", "Gemini", "OpenRouter", "Claude", "Grok", "Ollama")
+    private val providers = arrayOf("OpenAI", "Gemini", "OpenRouter", "Claude", "Grok", "Groq", "HuggingFace", "Ollama")
     private val providerUrls = mapOf(
         "OpenAI" to "https://platform.openai.com/api-keys",
         "Gemini" to "https://aistudio.google.com/app/apikey",
         "OpenRouter" to "https://openrouter.ai/keys",
         "Claude" to "https://console.anthropic.com/settings/keys",
         "Grok" to "https://console.x.ai/",
+        "Groq" to "https://console.groq.com/keys",
+        "HuggingFace" to "https://huggingface.co/settings/tokens",
         "Ollama" to ""
     )
     private val roles = arrayOf("user", "system", "assistant")
@@ -323,6 +325,8 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
             "OpenRouter" -> "https://openrouter.ai/api/v1/models"
             "Claude" -> "https://api.anthropic.com/v1/models" // Note: Claude might need different handling
             "Grok" -> "https://api.x.ai/v1/models"
+            "Groq" -> "${customBaseUrl.ifBlank { "https://api.groq.com/openai/v1" }.removeSuffix("/")}/models"
+            "HuggingFace" -> "https://huggingface.co/api/models?pipeline_tag=text-generation&sort=downloads&direction=-1&limit=20"
             "Ollama" -> "${customBaseUrl.ifBlank { "http://10.0.2.2:11434" }.removeSuffix("/")}/api/tags"
             else -> ""
         }
@@ -355,6 +359,10 @@ class AIPluginActivity : AppCompatActivity(), TaskerPluginConfig<AIInput> {
                                 val name = models.getJSONObject(i).getString("name")
                                 modelList.add(name.removePrefix("models/"))
                             }
+                        }
+                        "HuggingFace" -> {
+                            val array = JSONArray(responseBody)
+                            for (i in 0 until array.length()) modelList.add(array.getJSONObject(i).getString("id"))
                         }
                         else -> {
                             val data = json.getJSONArray("data")
@@ -442,6 +450,8 @@ class AIRunner : TaskerPluginRunnerAction<AIInput, AIOutput>() {
             "OpenRouter" -> "google/gemini-flash-1.5"
             "Claude" -> "claude-4-6-sonnet"
             "Grok" -> "grok-2-latest"
+            "Groq" -> "llama-3.1-70b-versatile"
+            "HuggingFace" -> "meta-llama/Llama-3.2-3B-Instruct"
             "Ollama" -> "llama3.1"
             else -> ""
         }
@@ -490,7 +500,7 @@ class AIRunner : TaskerPluginRunnerAction<AIInput, AIOutput>() {
         }
 
         val (url, bodyJson, authHeaderName, authHeaderValue) = when (provider) {
-            "OpenAI", "OpenRouter", "Grok" -> {
+            "OpenAI", "OpenRouter", "Grok", "Groq", "HuggingFace" -> {
                 val processedMessages = JSONArray()
                 for (i in 0 until messagesArray.length()) {
                     val msg = messagesArray.getJSONObject(i)
@@ -505,6 +515,8 @@ class AIRunner : TaskerPluginRunnerAction<AIInput, AIOutput>() {
                 val defaultBase = when (provider) {
                     "OpenAI" -> "https://api.openai.com/v1"
                     "Grok" -> "https://api.x.ai/v1"
+                    "Groq" -> "https://api.groq.com/openai/v1"
+                    "HuggingFace" -> "https://api-inference.huggingface.co/v1"
                     else -> "https://openrouter.ai/api/v1"
                 }
                 listOf("${customBaseUrl.ifBlank { defaultBase }.removeSuffix("/")}/chat/completions", JSONObject().put("model", model).put("messages", processedMessages).toString(), "Authorization", "Bearer $apiKey")
@@ -582,7 +594,7 @@ class AIRunner : TaskerPluginRunnerAction<AIInput, AIOutput>() {
             if (!response.isSuccessful) return TaskerPluginResultSucess(AIOutput("Error ${response.code}: $responseText"))
             val obj = JSONObject(responseText ?: "")
             val reply = when (provider) {
-                "OpenAI", "OpenRouter", "Grok" -> obj.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content")
+                "OpenAI", "OpenRouter", "Grok", "Groq", "HuggingFace" -> obj.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content")
                 "Gemini" -> obj.getJSONArray("candidates").getJSONObject(0).getJSONObject("content").getJSONArray("parts").getJSONObject(0).getString("text")
                 "Claude" -> obj.getJSONArray("content").getJSONObject(0).getString("text")
                 "Ollama" -> obj.getJSONObject("message").getString("content")
