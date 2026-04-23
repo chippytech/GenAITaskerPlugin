@@ -1,7 +1,16 @@
 
 <img src="tv_banner.png" alt="GenAI Tasker Plugin logo">
-<!-- test -->
+
 # GenAI Tasker Plugin
+
+### Antivirus Warning 
+Some antivirus programs may flag this app as potentially harmful. This is a known issue that can occur with automation tools, plugins, or apps that use dynamic code execution or network APIs.
+
+GenAI Tasker Plugin is fully open-source, and you are encouraged to review the code yourself.
+
+There is no malicious functionality included in this project. However, if you are uncomfortable installing the app, you should trust your judgment and avoid doing so.
+
+<hr>
 
 A versatile Android plugin for [Tasker](https://play.google.com/store/apps/details?id=net.dinglisch.android.taskerm) that allows you to integrate various Generative AI models into your automation workflows.
 
