@@ -1,5 +1,5 @@
 
-<img src="tv_banner.png" alt="GenAI Tasker Plugin logo">
+<img src="assets/banner.png" alt="GenAI Tasker Plugin logo">
 
 # GenAI Tasker Plugin
 
