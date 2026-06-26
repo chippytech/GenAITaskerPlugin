@@ -26,14 +26,77 @@ A versatile Android plugin for [Tasker](https://play.google.com/store/apps/detai
 
 ## Supported Providers
 
-| Provider | Default Model | Custom Base URL Support |
-| :--- | :--- | :--- |
-| **OpenAI** | `gpt-4o-mini` | Yes |
-| **Gemini** | `gemini-1.5-flash` | Yes |
-| **Claude** | `claude-3-5-sonnet-20240620` | Yes |
-| **OpenRouter**| `google/gemini-flash-1.5` | Yes |
-| **xAI (Grok)** | `grok-2-latest` | Yes |
-| **Ollama** | `llama3` | Yes (Required for local host) |
+### OpenAI
+
+```text
+Provider: OpenAI
+Default Model: gpt-4o-mini
+Custom Base URL: Yes
+
+Description:
+OpenAI provides powerful general-purpose language models optimized for chat,
+reasoning, coding, and multimodal tasks.
+```
+
+### Gemini
+
+```text
+Provider: Gemini (Google)
+Default Model: gemini-1.5-flash
+Custom Base URL: Yes
+
+Description:
+Gemini offers fast, multimodal AI models with strong performance for
+real-time applications and large context windows.
+```
+
+### Claude
+
+```text
+Provider: Claude (Anthropic)
+Default Model: claude-3-5-sonnet-20240620
+Custom Base URL: Yes
+
+Description:
+Claude excels at long-context reasoning, writing, and complex analytical tasks
+with a strong emphasis on safety and reliability.
+```
+
+### OpenRouter
+
+```text
+Provider: OpenRouter
+Default Model: google/gemini-flash-1.5
+Custom Base URL: Yes
+
+Description:
+OpenRouter provides a unified API for accessing models from multiple AI
+providers through a single endpoint.
+```
+
+### xAI (Grok)
+
+```text
+Provider: xAI (Grok)
+Default Model: grok-2-latest
+Custom Base URL: Yes
+
+Description:
+Grok is a conversational AI model focused on fast responses and strong
+general-purpose reasoning capabilities.
+```
+
+### Ollama
+
+```text
+Provider: Ollama
+Default Model: llama3
+Custom Base URL: Yes (Required for localhost)
+
+Description:
+Ollama runs AI models locally, enabling private, offline, and self-hosted
+language model deployments.
+```
 
 ## Installation
 
